@@ -37,7 +37,7 @@
   .opt label{display:flex;align-items:center;gap:10px;cursor:pointer}
   .opt small{color:var(--muted)}
   .opt input[type="checkbox"]{accent-color:var(--accent);width:18px;height:18px}
-  .note{font-size:12px;color:var(--muted);margin-top:6px}
+  .note{font-size:12px;color:#9aa4b2;margin-top:6px}
   .foot{position:fixed;left:0;right:0;bottom:0;z-index:60;background:linear-gradient(180deg,rgba(17,24,39,.85),rgba(17,24,39,.98));
     border-top:1px solid #1f2937}
   .foot-inner{max-width:980px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -66,7 +66,7 @@
         <button class="chip" data-day="dom">Dom</button>
       </div>
     </div>
-    <div class="note">Seg/Qua/Sex já ligam o boxe automaticamente.</div>
+    <div class="note">Seg/Qua/Sex ligam o boxe automaticamente. <b>Sem boxe, o dia inicia com Café da manhã (8h).</b></div>
   </div>
 </header>
 
@@ -80,56 +80,147 @@
 </footer>
 
 <script>
-const MEALS=[ /* mesmas refeições e opções da versão anterior */ 
-  {id:"antes-boxe",title:"Antes do Boxe (6h–6h30)",boxeOnly:true,options:[
-    {id:"banana_whey",label:"1 banana + whey + creatina",kcal:210},
-    {id:"pao_mel",label:"½ pão + mel/geleia",kcal:150}]},
-  {id:"pos-boxe",title:"Pós-Boxe (~8h)",boxeOnly:true,options:[
-    {id:"pao_ovo_fruta",label:"Pão + 2 ovos + 1 fruta",kcal:370},
-    {id:"iogurte_aveia",label:"Iogurte + aveia + banana",kcal:300}]},
+/* Sequência quando TEM boxe */
+const MEALS_BOXE = [
+  {id:"antes-boxe",title:"Antes do Boxe (6h–6h30)",options:[
+    {id:"banana_whey",label:"1 banana + whey + 5g creatina",kcal:210},
+    {id:"pao_mel",label:"½ pão + mel/geleia",kcal:150}
+  ]},
+  {id:"pos-boxe",title:"Pós-Boxe (~8h)",options:[
+    {id:"pao_ovo_fruta",label:"Pão + 2 ovos mexidos + 1 fruta",kcal:370},
+    {id:"iogurte_aveia_banana",label:"Iogurte + aveia + banana",kcal:300}
+  ]},
   {id:"lanche-manha",title:"Lanche da Manhã (10h30–11h)",options:[
     {id:"iog_aveia_pasta",label:"Iogurte + aveia + pasta de amendoim",kcal:290},
-    {id:"fruta_castanhas",label:"1 fruta + castanhas",kcal:220}]},
+    {id:"fruta_castanhas",label:"1 fruta + 20g castanhas",kcal:220}
+  ]},
   {id:"pre-academia",title:"Pré-Academia (11h30)",options:[
     {id:"banana",label:"1 banana",kcal:90},
-    {id:"pao_mel",label:"1 fatia pão + mel",kcal:150}]},
+    {id:"pao_mel_fatia",label:"1 fatia pão + mel/geleia",kcal:150}
+  ]},
   {id:"pos-academia",title:"Almoço (13h)",options:[
-    {id:"arroz_feijao_frango",label:"Arroz + feijão + frango",kcal:570},
-    {id:"arroz_carne",label:"Arroz + carne + salada",kcal:520}]},
+    {id:"arroz_feijao_frango",label:"Arroz (150g) + Feijão (100g) + Frango (150–200g)",kcal:570},
+    {id:"arroz_carne_salada",label:"Arroz (150g) + Carne magra + salada/legumes",kcal:520}
+  ]},
   {id:"lanche-tarde",title:"Lanche da Tarde (16h)",options:[
-    {id:"whey_fruta",label:"Whey + fruta",kcal:210},
-    {id:"pao_ovo",label:"Pão + ovo",kcal:250}]},
+    {id:"whey_fruta",label:"Whey + 1 fruta",kcal:210},
+    {id:"pao_ovo",label:"Pão + ovo/queijo branco",kcal:250}
+  ]},
   {id:"jantar",title:"Jantar (19h30–20h)",options:[
-    {id:"macarrao_frango",label:"Macarrão + frango + legumes",kcal:530},
-    {id:"arroz_peixe",label:"Arroz + peixe + salada",kcal:520}]},
-  {id:"ceia",title:"Ceia (22h)",options:[
+    {id:"macarrao_frango_legumes",label:"Macarrão (150g) + Frango (150g) + legumes/salada",kcal:530},
+    {id:"arroz_feijao_peixe",label:"Arroz + Feijão + Peixe (150g) + salada",kcal:520}
+  ]},
+  {id:"ceia",title:"Ceia (22h, opcional)",options:[
     {id:"iog_aveia",label:"Iogurte + aveia",kcal:180},
-    {id:"omelete",label:"Omelete leve",kcal:150}]}
+    {id:"omelete_leve",label:"Omelete leve (2 ovos)",kcal:150}
+  ]}
 ];
+
+/* Sequência quando NÃO TEM boxe — começa com Café da manhã às 8h */
+const MEALS_NO_BOXE = [
+  {id:"cafe-manha",title:"Café da manhã (8h)",options:[
+    {id:"pao_ovos_fruta",label:"Pão + 2 ovos mexidos + 1 fruta",kcal:370},
+    {id:"iogurte_aveia_banana",label:"Iogurte + aveia + banana",kcal:300},
+    {id:"banana_whey",label:"1 banana + 1 scoop whey + 5g creatina",kcal:210}
+  ]},
+  {id:"lanche-manha",title:"Lanche da Manhã (10h30–11h)",options:[
+    {id:"fruta_castanhas",label:"1 fruta + 20g castanhas",kcal:220},
+    {id:"pao_queijo",label:"1 fatia pão + queijo branco",kcal:200}
+  ]},
+  {id:"pre-academia",title:"Pré-Academia (11h30)",options:[
+    {id:"banana",label:"1 banana",kcal:90},
+    {id:"pao_mel_fatia",label:"1 fatia pão + mel/geleia",kcal:150}
+  ]},
+  {id:"pos-academia",title:"Almoço (13h)",options:[
+    {id:"arroz_feijao_frango",label:"Arroz (150g) + Feijão (100g) + Frango (150–200g)",kcal:570},
+    {id:"arroz_carne_salada",label:"Arroz (150g) + Carne magra + salada/legumes",kcal:520}
+  ]},
+  {id:"lanche-tarde",title:"Lanche da Tarde (16h)",options:[
+    {id:"whey_fruta",label:"Whey + 1 fruta",kcal:210},
+    {id:"iogurte_cereal",label:"Iogurte + cereal simples",kcal:220}
+  ]},
+  {id:"jantar",title:"Jantar (19h30–20h)",options:[
+    {id:"macarrao_frango_legumes",label:"Macarrão (150g) + Frango (150g) + legumes/salada",kcal:530},
+    {id:"arroz_feijao_peixe",label:"Arroz + Feijão + Peixe (150g) + salada",kcal:520}
+  ]},
+  {id:"ceia",title:"Ceia (22h, opcional)",options:[
+    {id:"iog_aveia",label:"Iogurte + aveia",kcal:180},
+    {id:"omelete_leve",label:"Omelete leve (2 ovos)",kcal:150}
+  ]}
+];
+
 let state={hasBoxe:true,checked:{}};
-const totalEl=document.getElementById("totalKcal"),content=document.getElementById("content"),days=document.getElementById("days");
+const totalEl=document.getElementById("totalKcal"),
+      content=document.getElementById("content"),
+      days=document.getElementById("days"),
+      hasBoxeToggle=document.getElementById("hasBoxe");
+
+/* Render com base no hasBoxe: escolhe a sequência adequada */
 function render(){
+  const MEALS = state.hasBoxe ? MEALS_BOXE : MEALS_NO_BOXE;
   content.innerHTML="";
   MEALS.forEach(m=>{
-    if(m.boxeOnly && !state.hasBoxe) return;
-    const card=document.createElement("section");card.className="card";
-    card.innerHTML=`<h2>${m.title}</h2><div class="opt-list"></div>`;
+    const card=document.createElement("section");card.className="card meal";
+    card.innerHTML=`<h2>${m.title}</h2><div class="opt-list"></div>
+                    <div class="note">Marcadas nesta refeição: <b class="kcal-tag">${sumMeal(m,MEALS)} kcal</b></div>`;
     const list=card.querySelector(".opt-list");
     m.options.forEach(o=>{
-      const chkId=`${m.id}_${o.id}`,opt=document.createElement("div");opt.className="opt";
-      opt.innerHTML=`<label for="${chkId}"><input type="checkbox" id="${chkId}">${o.label} <small>${o.kcal} kcal</small></label>`;
-      const input=opt.querySelector("input");input.checked=!!state.checked[chkId];
-      input.addEventListener("change",()=>{if(input.checked) state.checked[chkId]=o.kcal; else delete state.checked[chkId];updateTotal();});
+      const key = keyOf(m.id,o.id);
+      const opt=document.createElement("div");opt.className="opt";
+      opt.innerHTML=`<label><input type="checkbox"> ${o.label} <small>${o.kcal} kcal</small></label>`;
+      const input=opt.querySelector("input");input.checked=!!state.checked[key];
+      input.addEventListener("change",()=>{
+        if(input.checked) state.checked[key]=o.kcal; else delete state.checked[key];
+        // atualiza subtotal da refeição e total do dia
+        card.querySelector(".kcal-tag").textContent = sumMeal(m,MEALS) + " kcal";
+        updateTotal(MEALS);
+      });
       list.appendChild(opt);
     });
     content.appendChild(card);
   });
-  updateTotal();
+  updateTotal(MEALS);
 }
-function updateTotal(){let t=0;for(const k in state.checked)t+=state.checked[k];totalEl.textContent=t;}
-document.getElementById("hasBoxe").addEventListener("change",e=>{state.hasBoxe=e.target.checked;render();});
-days.addEventListener("click",e=>{const c=e.target.closest(".chip");if(!c)return;days.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));c.classList.add("active");state.hasBoxe=["seg","qua","sex"].includes(c.dataset.day);document.getElementById("hasBoxe").checked=state.hasBoxe;render();});
-render();
+
+/* Helpers */
+function keyOf(mealId,optId){ return `${mealId}__${optId}`; }
+function sumMeal(meal, MEALS){
+  let s=0;
+  for(const o of meal.options){
+    if(state.checked[keyOf(meal.id,o.id)]) s += o.kcal;
+  }
+  return s;
+}
+function totalKcal(MEALS){
+  let t=0;
+  for(const m of MEALS){
+    for(const o of m.options){
+      if(state.checked[keyOf(m.id,o.id)]) t += o.kcal;
+    }
+  }
+  return t;
+}
+function updateTotal(MEALS){ totalEl.textContent = totalKcal(MEALS); }
+
+/* Toggle e dias */
+hasBoxeToggle.addEventListener("change",e=>{
+  state.hasBoxe=e.target.checked; render();
+});
+days.addEventListener("click",e=>{
+  const c=e.target.closest(".chip"); if(!c) return;
+  days.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));
+  c.classList.add("active");
+  state.hasBoxe = ["seg","qua","sex"].includes(c.dataset.day);
+  hasBoxeToggle.checked = state.hasBoxe;
+  render();
+});
+
+/* Init: marca segunda por padrão */
+(function init(){
+  Array.from(days.children)[0].classList.add("active"); // seg
+  hasBoxeToggle.checked = state.hasBoxe;
+  render();
+})();
 </script>
 </body>
 </html>
