@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Plano Alimentar do Gustavo — Interativo</title>
+<meta name="theme-color" content="#0f121a"/>
+<style>
+  :root{
+    --bg:#0b1117; --card:#111827; --soft:#0c1624; --stroke:#1f2a3a;
+    --text:#e5e7eb; --muted:#9aa4b2; --accent:#22c55e; --sky:#38bdf8;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--text);
+    font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  header{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,rgba(17,24,39,.98),rgba(17,24,39,.8));
+    border-bottom:1px solid #1f2937;backdrop-filter:saturate(140%) blur(6px)}
+  .wrap{max-width:980px;margin:0 auto;padding:14px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  h1{margin:0;font-size:20px}
+  .subtitle{font-size:13px;color:var(--muted)}
+  .badge{font-size:12px;padding:4px 8px;border:1px solid #283344;border-radius:999px;color:#cbd5e1}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:8px 10px;border-radius:10px;border:1px solid #283344;background:#0c1320;
+    color:#cbd5e1;font-size:13px;cursor:pointer}
+  .chip.active{border-color:var(--accent);outline:2px solid rgba(34,197,94,.2)}
+  .switch{display:flex;align-items:center;gap:10px;background:#0b1522;border:1px solid var(--stroke);
+    border-radius:12px;padding:8px 12px;margin-top:8px}
+  .switch input{accent-color:var(--sky);width:18px;height:18px}
+  main{padding:12px 0 96px}
+  .card{background:var(--card);border:1px solid #202a38;border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);margin-top:12px}
+  .meal h2{margin:0 0 6px 0;font-size:18px}
+  .kcal-tag{font-size:12px;color:#cbd5e1;background:#0f172a;border:1px solid #243044;padding:3px 8px;border-radius:999px}
+  .opt-list{display:grid;gap:8px}
+  .opt{display:flex;justify-content:space-between;align-items:center;gap:10px;
+       border:1px solid #243044;background:#0c1624;border-radius:10px;padding:10px}
+  .opt label{display:flex;align-items:center;gap:10px;cursor:pointer}
+  .opt small{color:var(--muted)}
+  .opt input[type="checkbox"]{accent-color:var(--accent);width:18px;height:18px}
+  .note{font-size:12px;color:var(--muted);margin-top:6px}
+  .foot{position:fixed;left:0;right:0;bottom:0;z-index:60;background:linear-gradient(180deg,rgba(17,24,39,.85),rgba(17,24,39,.98));
+    border-top:1px solid #1f2937}
+  .foot-inner{max-width:980px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .total{font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h1>Plano Alimentar do Gustavo</h1>
+        <div class="subtitle">Boxe: <b>seg/qua/sex de manhã</b> • Academia: <b>todos os dias às 12h</b></div>
+      </div>
+      <span class="badge">Mobile-friendly</span>
+    </div>
+    <div class="row">
+      <div class="switch"><input id="hasBoxe" type="checkbox"><label for="hasBoxe"><b>Hoje tem boxe de manhã</b></label></div>
+      <div class="chips" id="days">
+        <button class="chip" data-day="seg">Seg</button>
+        <button class="chip" data-day="ter">Ter</button>
+        <button class="chip" data-day="qua">Qua</button>
+        <button class="chip" data-day="qui">Qui</button>
+        <button class="chip" data-day="sex">Sex</button>
+        <button class="chip" data-day="sab">Sáb</button>
+        <button class="chip" data-day="dom">Dom</button>
+      </div>
+    </div>
+    <div class="note">Seg/Qua/Sex já ligam o boxe automaticamente.</div>
+  </div>
+</header>
+
+<main class="wrap" id="content"></main>
+
+<footer class="foot">
+  <div class="foot-inner">
+    <div class="total">Consumido hoje: <span id="totalKcal">0</span> kcal</div>
+    <div class="subtitle">Referência: ~2455 kcal</div>
+  </div>
+</footer>
+
+<script>
+const MEALS=[ /* mesmas refeições e opções da versão anterior */ 
+  {id:"antes-boxe",title:"Antes do Boxe (6h–6h30)",boxeOnly:true,options:[
+    {id:"banana_whey",label:"1 banana + whey + creatina",kcal:210},
+    {id:"pao_mel",label:"½ pão + mel/geleia",kcal:150}]},
+  {id:"pos-boxe",title:"Pós-Boxe (~8h)",boxeOnly:true,options:[
+    {id:"pao_ovo_fruta",label:"Pão + 2 ovos + 1 fruta",kcal:370},
+    {id:"iogurte_aveia",label:"Iogurte + aveia + banana",kcal:300}]},
+  {id:"lanche-manha",title:"Lanche da Manhã (10h30–11h)",options:[
+    {id:"iog_aveia_pasta",label:"Iogurte + aveia + pasta de amendoim",kcal:290},
+    {id:"fruta_castanhas",label:"1 fruta + castanhas",kcal:220}]},
+  {id:"pre-academia",title:"Pré-Academia (11h30)",options:[
+    {id:"banana",label:"1 banana",kcal:90},
+    {id:"pao_mel",label:"1 fatia pão + mel",kcal:150}]},
+  {id:"pos-academia",title:"Almoço (13h)",options:[
+    {id:"arroz_feijao_frango",label:"Arroz + feijão + frango",kcal:570},
+    {id:"arroz_carne",label:"Arroz + carne + salada",kcal:520}]},
+  {id:"lanche-tarde",title:"Lanche da Tarde (16h)",options:[
+    {id:"whey_fruta",label:"Whey + fruta",kcal:210},
+    {id:"pao_ovo",label:"Pão + ovo",kcal:250}]},
+  {id:"jantar",title:"Jantar (19h30–20h)",options:[
+    {id:"macarrao_frango",label:"Macarrão + frango + legumes",kcal:530},
+    {id:"arroz_peixe",label:"Arroz + peixe + salada",kcal:520}]},
+  {id:"ceia",title:"Ceia (22h)",options:[
+    {id:"iog_aveia",label:"Iogurte + aveia",kcal:180},
+    {id:"omelete",label:"Omelete leve",kcal:150}]}
+];
+let state={hasBoxe:true,checked:{}};
+const totalEl=document.getElementById("totalKcal"),content=document.getElementById("content"),days=document.getElementById("days");
+function render(){
+  content.innerHTML="";
+  MEALS.forEach(m=>{
+    if(m.boxeOnly && !state.hasBoxe) return;
+    const card=document.createElement("section");card.className="card";
+    card.innerHTML=`<h2>${m.title}</h2><div class="opt-list"></div>`;
+    const list=card.querySelector(".opt-list");
+    m.options.forEach(o=>{
+      const chkId=`${m.id}_${o.id}`,opt=document.createElement("div");opt.className="opt";
+      opt.innerHTML=`<label for="${chkId}"><input type="checkbox" id="${chkId}">${o.label} <small>${o.kcal} kcal</small></label>`;
+      const input=opt.querySelector("input");input.checked=!!state.checked[chkId];
+      input.addEventListener("change",()=>{if(input.checked) state.checked[chkId]=o.kcal; else delete state.checked[chkId];updateTotal();});
+      list.appendChild(opt);
+    });
+    content.appendChild(card);
+  });
+  updateTotal();
+}
+function updateTotal(){let t=0;for(const k in state.checked)t+=state.checked[k];totalEl.textContent=t;}
+document.getElementById("hasBoxe").addEventListener("change",e=>{state.hasBoxe=e.target.checked;render();});
+days.addEventListener("click",e=>{const c=e.target.closest(".chip");if(!c)return;days.querySelectorAll(".chip").forEach(x=>x.classList.remove("active"));c.classList.add("active");state.hasBoxe=["seg","qua","sex"].includes(c.dataset.day);document.getElementById("hasBoxe").checked=state.hasBoxe;render();});
+render();
+</script>
+</body>
+</html>
