@@ -27,7 +27,7 @@
   .switch{display:flex;align-items:center;gap:10px;background:#0b1522;border:1px solid var(--stroke);
     border-radius:12px;padding:8px 12px;margin-top:8px}
   .switch input{accent-color:var(--sky);width:18px;height:18px}
-  main{padding:12px 0 96px}
+  main{padding:12px 0 112px}
   .card{background:var(--card);border:1px solid #202a38;border-radius:14px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.25);margin-top:12px}
   .meal h2{margin:0 0 6px 0;font-size:18px}
   .kcal-tag{font-size:12px;color:#cbd5e1;background:#0f172a;border:1px solid #243044;padding:3px 8px;border-radius:999px}
@@ -40,8 +40,13 @@
   .note{font-size:12px;color:#9aa4b2;margin-top:6px}
   .foot{position:fixed;left:0;right:0;bottom:0;z-index:60;background:linear-gradient(180deg,rgba(17,24,39,.85),rgba(17,24,39,.98));
     border-top:1px solid #1f2937}
-  .foot-inner{max-width:980px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .foot-inner{max-width:980px;margin:0 auto;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .total{font-weight:700}
+  .btn{padding:8px 10px;border-radius:9px;border:1px solid #2a3648;background:#0b1522;color:#cbd5e1;font-size:13px;cursor:pointer}
+  .btn.success{border-color:#22c55e}
+  .btn.warn{border-color:#f59e0b;color:#fcd34d}
+  .streak{display:flex;gap:10px;align-items:center}
+  .pill{border:1px solid #2a3648;border-radius:999px;padding:4px 8px;font-size:12px;color:#cbd5e1;background:#0c1320}
 </style>
 </head>
 <body>
@@ -75,19 +80,26 @@
 <footer class="foot">
   <div class="foot-inner">
     <div class="total">Consumido hoje: <span id="totalKcal">0</span> kcal</div>
-    <div class="subtitle">Referência: ~2455 kcal</div>
+    <div class="streak">
+      <span class="pill">🔥 Streak: <b id="streakNow">0</b> dias</span>
+      <span class="pill">🏆 Recorde: <b id="streakBest">0</b></span>
+    </div>
+    <div class="row">
+      <button class="btn success" id="btnComplete">Concluir dia</button>
+      <button class="btn warn" id="btnClearDay">Limpar marcações do dia</button>
+    </div>
   </div>
 </footer>
 
 <script>
-/* Sequência quando TEM boxe */
+/* ====== Sequências de refeições ====== */
 const MEALS_BOXE = [
   {id:"antes-boxe",title:"Antes do Boxe (6h–6h30)",options:[
     {id:"banana_whey",label:"1 banana + whey + 5g creatina",kcal:210},
     {id:"pao_mel",label:"½ pão + mel/geleia",kcal:150}
   ]},
   {id:"pos-boxe",title:"Pós-Boxe (~8h)",options:[
-    {id:"pao_ovo_fruta",label:"Pão + 2 ovos mexidos + 1 fruta",kcal:370},
+    {id:"pao_ovo_fruta",label:"Pão + 2 ovos + 1 fruta",kcal:370},
     {id:"iogurte_aveia_banana",label:"Iogurte + aveia + banana",kcal:300}
   ]},
   {id:"lanche-manha",title:"Lanche da Manhã (10h30–11h)",options:[
@@ -116,7 +128,6 @@ const MEALS_BOXE = [
   ]}
 ];
 
-/* Sequência quando NÃO TEM boxe — começa com Café da manhã às 8h */
 const MEALS_NO_BOXE = [
   {id:"cafe-manha",title:"Café da manhã (8h)",options:[
     {id:"pao_ovos_fruta",label:"Pão + 2 ovos mexidos + 1 fruta",kcal:370},
@@ -149,13 +160,15 @@ const MEALS_NO_BOXE = [
   ]}
 ];
 
+/* ====== Estado, render e calorias ====== */
 let state={hasBoxe:true,checked:{}};
 const totalEl=document.getElementById("totalKcal"),
       content=document.getElementById("content"),
       days=document.getElementById("days"),
       hasBoxeToggle=document.getElementById("hasBoxe");
 
-/* Render com base no hasBoxe: escolhe a sequência adequada */
+function keyOf(mealId,optId){ return `${mealId}__${optId}`; }
+
 function render(){
   const MEALS = state.hasBoxe ? MEALS_BOXE : MEALS_NO_BOXE;
   content.innerHTML="";
@@ -171,9 +184,9 @@ function render(){
       const input=opt.querySelector("input");input.checked=!!state.checked[key];
       input.addEventListener("change",()=>{
         if(input.checked) state.checked[key]=o.kcal; else delete state.checked[key];
-        // atualiza subtotal da refeição e total do dia
         card.querySelector(".kcal-tag").textContent = sumMeal(m,MEALS) + " kcal";
         updateTotal(MEALS);
+        saveDayMarks(); // salva marcações do dia
       });
       list.appendChild(opt);
     });
@@ -182,8 +195,6 @@ function render(){
   updateTotal(MEALS);
 }
 
-/* Helpers */
-function keyOf(mealId,optId){ return `${mealId}__${optId}`; }
 function sumMeal(meal, MEALS){
   let s=0;
   for(const o of meal.options){
@@ -202,7 +213,7 @@ function totalKcal(MEALS){
 }
 function updateTotal(MEALS){ totalEl.textContent = totalKcal(MEALS); }
 
-/* Toggle e dias */
+/* ====== Controle de dia/boxe ====== */
 hasBoxeToggle.addEventListener("change",e=>{
   state.hasBoxe=e.target.checked; render();
 });
@@ -215,10 +226,94 @@ days.addEventListener("click",e=>{
   render();
 });
 
-/* Init: marca segunda por padrão */
+/* ====== Streak (sequência) ====== */
+const STREAK_KEY="plano_streak_v1";
+const streakNowEl=document.getElementById("streakNow");
+const streakBestEl=document.getElementById("streakBest");
+const btnComplete=document.getElementById("btnComplete");
+const btnClearDay=document.getElementById("btnClearDay");
+
+/* util datas (usa fuso local do aparelho) */
+function todayISO(){ const d=new Date(); d.setHours(0,0,0,0); return d.toISOString().slice(0,10); }
+function yesterdayISO(){ const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-1); return d.toISOString().slice(0,10); }
+
+function loadStreak(){
+  try{
+    const raw=localStorage.getItem(STREAK_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {current:0,best:0,completed:{},lastOpen:todayISO()};
+}
+function saveStreak(){ localStorage.setItem(STREAK_KEY, JSON.stringify(streak)); }
+
+let streak = loadStreak();
+
+/* Reseta sequência se ontem não foi concluído e já “virou o dia” */
+function reconcileStreakOnOpen(){
+  const t=todayISO(), y=yesterdayISO();
+  // se já passou para um novo dia e ontem não está concluído, zera
+  if(streak.lastOpen !== t){
+    if(!streak.completed[y]){ streak.current = 0; }
+    streak.lastOpen = t;
+    saveStreak();
+  }
+  updateStreakUI();
+}
+
+/* Concluir dia (marca hoje e atualiza sequência) */
+btnComplete.addEventListener("click", ()=>{
+  const t=todayISO(), y=yesterdayISO();
+  if(streak.completed[t]){ alert("Hoje já está concluído ✅"); return; }
+  // regra simples: se ontem foi concluído, incrementa; senão recomeça do 1
+  streak.current = streak.completed[y] ? (streak.current+1) : 1;
+  if(streak.current > streak.best) streak.best = streak.current;
+  streak.completed[t] = true;
+  streak.lastOpen = t;
+  saveStreak();
+  updateStreakUI();
+  alert("Dia concluído! 🔥 Streak atual: " + streak.current);
+});
+
+/* UI streak */
+function updateStreakUI(){
+  streakNowEl.textContent = streak.current || 0;
+  streakBestEl.textContent = streak.best || 0;
+}
+
+/* ====== Persistência das marcações do dia ====== */
+const MARKS_KEY_PREFIX = "plano_marks_"; // por data
+function marksKeyForToday(){ return MARKS_KEY_PREFIX + todayISO(); }
+function saveDayMarks(){
+  try{ localStorage.setItem(marksKeyForToday(), JSON.stringify(state.checked)); }catch(e){}
+}
+function loadDayMarks(){
+  try{
+    const raw = localStorage.getItem(marksKeyForToday());
+    if(raw) state.checked = JSON.parse(raw) || {};
+    else state.checked = {};
+  }catch(e){ state.checked = {}; }
+}
+
+/* Limpar marcações do dia (não mexe na sequência) */
+btnClearDay.addEventListener("click", ()=>{
+  state.checked = {};
+  localStorage.removeItem(marksKeyForToday());
+  render();
+});
+
+/* ====== Init ====== */
 (function init(){
+  // UI: marcar segunda como ativo por padrão
   Array.from(days.children)[0].classList.add("active"); // seg
   hasBoxeToggle.checked = state.hasBoxe;
+
+  // streak: checagem de “virada de dia” e reset se precisou
+  reconcileStreakOnOpen();
+
+  // carrega marcações do dia (por data)
+  loadDayMarks();
+
+  // render inicial
   render();
 })();
 </script>
